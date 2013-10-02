@@ -197,17 +197,17 @@ class CudaconvNetBuilder(FastNetBuilder):
 
 
   def neuron_layer(self, ld):
-    if ld['neuron']['type'] == 'relu':
+    if ld['neuron'] == 'relu':
       name = ld['name']
       #e = ld['neuron']['e']
       return NeuronLayer(name, type='relu')
-    if ld['neuron']['type'] == 'tanh':
+    if ld['neuron'] == 'tanh':
       name = ld['name']
-      a = ld['neuron']['a']
-      b = ld['neuron']['b']
+      a = ld['a']
+      b = ld['b']
       return NeuronLayer(name, 'tanh', a=a, b=b)
 
-    assert False, 'No implementation for the neuron type' + ld['neuron']['type']
+    assert False, 'No implementation for the neuron type' + ld['neuron']
 
 
   def fc_layer(self, ld):
