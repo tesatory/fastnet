@@ -36,7 +36,7 @@ def get_net(path):
     layers = open_checkpoint(path)
     model = dict()
     model['layers'] = layers
-    image_sz = 224
+    image_sz = layers[0]['image_shape'][1]
     batch_sz = 128
     return fastnet.net.FastNet(0.1, (3, image_sz, image_sz, batch_sz), model)
 
@@ -44,6 +44,14 @@ def get_dp(data_dir = '/scratch/sainaa/imagenet/train/'):
     train_range = range(101, 1301) #1,2,3,....,40
     test_range = range(1, 101) #41, 42, ..., 48
     data_provider = 'imagenet'
+    train_dp = fastnet.data.get_by_name(data_provider)(data_dir,train_range)
+    test_dp = fastnet.data.get_by_name(data_provider)(data_dir, test_range)
+    return train_dp, test_dp
+
+def get_dp_cifar(data_dir = '/scratch/sainaa/cifar-10/train/'):
+    train_range = range(1, 6) #1,2,3,....,40
+    test_range = range(6, 7) #41, 42, ..., 48
+    data_provider = 'cifar10'
     train_dp = fastnet.data.get_by_name(data_provider)(data_dir,train_range)
     test_dp = fastnet.data.get_by_name(data_provider)(data_dir, test_range)
     return train_dp, test_dp
@@ -56,13 +64,13 @@ def labels_from_datadir(data_dir):
         synid = basename(synid)[1:]
         lbl = train_dp.dp.batch_meta['synid_to_label'][synid]
         labels.append(lbl)
-    print labels
+    return labels
 
 def test_error(net, dp, output_restrict = None, batch = None):
     if batch == None:
         batch = dp.get_next_batch(128)
     net.train_batch(batch.data, batch.labels, TEST)
-    print net.get_batch_information()
+    #print net.get_batch_information()
     output = to_cpu(net.output)
     labels = to_cpu(batch.labels)
     
@@ -96,7 +104,7 @@ def build_image(array):
         filter_size = array.shape[0]
     
     num_filters = array.shape[-1]
-    num_cols = util.divup(2000, filter_size)
+    num_cols = int(numpy.ceil(numpy.sqrt(num_filters)))
     num_rows = util.divup(num_filters, num_cols)
     
     if len(array.shape) == 4:
@@ -122,7 +130,8 @@ def build_image(array):
 def plot_images(data):
     if isinstance(data, pycuda.gpuarray.GPUArray):
         data = to_cpu(data)
-    data = data.reshape(3,224,224,-1)
+    imgsz = numpy.sqrt(data.shape[0]/3)
+    data = data.reshape(3,imgsz,imgsz,-1)
     img = build_image(data)
     plt.imshow(img)
 
