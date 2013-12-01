@@ -105,7 +105,13 @@ class ImageNetDataProvider(DataProvider):
     batch_dict = dict((k, k) for k in self.batch_range)
 
     for d in cat_dirs:
-      imgs = [v for i, v in enumerate(glob.glob(d + '/*.JPEG')) if i in batch_dict] # jpg -> JPEG by Sainaa
+      img_files = list()
+      img_files.extend(glob.glob(d + '/*.jpg'))
+      img_files.extend(glob.glob(d + '/*.jpeg'))
+      img_files.extend(glob.glob(d + '/*.JPG'))
+      img_files.extend(glob.glob(d + '/*.JPEG'))
+      img_files.sort()
+      imgs = [v for i, v in enumerate(img_files) if i in batch_dict]
     
       self.images.extend(imgs)
 
