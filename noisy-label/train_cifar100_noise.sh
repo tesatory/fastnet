@@ -1,0 +1,9 @@
+#python trainer_cifar100_noisy.py 0 > result_cifar100_noisy_0.txt
+#python trainer_cifar100_noisy.py 1000 > result_cifar100_noisy_1000.txt
+#python trainer_cifar100_noisy.py 2500 > result_cifar100_noisy_2500.txt
+python trainer_cifar100_noisy.py 5000 > result_cifar100_noisy_5000.txt
+#python trainer_cifar100_noisy.py 10000 > result_cifar100_noisy_10000.txt
+#python trainer_cifar100_noisy.py 15000 > result_cifar100_noisy_15000.txt
+python trainer_cifar100_noisy.py 20000 > result_cifar100_noisy_20000.txt
+#python trainer_cifar100_noisy.py 25000 > result_cifar100_noisy_25000.txt
+python trainer_cifar100_noisy.py 50000 > result_cifar100_noisy_50000.txt
