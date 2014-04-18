@@ -9,8 +9,8 @@ import data_loader
 
 # setting
 batch_size = 128
-param_file = '/home/sainbar/fastnet/config/cifar-10-18pct-big3.cfg'
-num_epoch = 30
+param_file = '/home/sainbar/fastnet/config/cifar-10-18pct.cfg'
+num_epoch = 100
 learning_rate = 1
 image_color = 3
 image_size = 32
@@ -24,7 +24,10 @@ data_mean = train_data.mean(axis=1,keepdims=True)
 train_data = train_data - data_mean
 test_data = test_data - data_mean
 
-noise_sz = int(sys.argv[1])
+pure_sz = int(sys.argv[1])
+noise_sz = int(sys.argv[2])
+train_data = train_data[:,0:pure_sz]
+train_labels = train_labels[0:pure_sz]
 if noise_sz > 0:
 	# noisy data
 	noisy_data, noisy_labels = data_loader.load_noisy_labeled()
@@ -45,6 +48,6 @@ print 'train:', train_data.shape[1], 'samples', len(train_batches), 'batches'
 print 'test:', test_data.shape[1], 'samples', len(test_batches), 'batches'
 net_trainer.train(net, num_epoch, train_batches, test_batches)
 net.adjust_learning_rate(0.1)
-net_trainer.train(net, 10, train_batches, test_batches)
+net_trainer.train(net, 20, train_batches, test_batches)
 net.adjust_learning_rate(0.1)
 net_trainer.train(net, 10, train_batches, test_batches)
