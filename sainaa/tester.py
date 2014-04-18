@@ -1,8 +1,10 @@
 from util import *
 
-base_dir = '/scratch/sainaa/cifar-10/'
-net = get_net(base_dir + 'checkpoint/cifar-test-1-11')
-train_dp, test_dp = get_dp_cifar(base_dir + 'train/')
+base_dir = '/scratch/ss7345/imagenet/'
+net = get_net(base_dir + 'checkpoint/long-train-38')
+base_dir = '/ssd/fergusgroup/sainaa/imagenet/'
+train_dp, test_dp = get_dp(base_dir + 'train/')
+test_dp = train_dp
 
 test_dp.reset()
 total_case = 0

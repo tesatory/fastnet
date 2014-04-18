@@ -70,7 +70,7 @@ def test_error(net, dp, output_restrict = None, batch = None):
     if batch == None:
         batch = dp.get_next_batch(128)
     net.train_batch(batch.data, batch.labels, TEST)
-    #print net.get_batch_information()
+    print net.get_batch_information()
     output = to_cpu(net.output)
     labels = to_cpu(batch.labels)
     

@@ -1,48 +1,38 @@
+import sys
 import numpy
 from fastnet.cuda_kernel import *
 import pycuda.driver as cuda
 import pycuda.gpuarray as gpuarray
 import fastnet.net
 import fastnet.layer
+import pylab
+import matplotlib.pyplot as plt
 from util import *
-
-def reverse_conv_batch(l, feature, feature_out): 
-    img_size = 32
-    color_num = 3
-    feature_num = 32
-    feature_size = 32
-    padding = 2
-    batch_size = feature.shape[1]
-
-    feature = to_cpu(feature).reshape(32, 32, 32, batch_size)
-    weight = to_cpu(l.weight)
-    weight = weight.reshape(3, 5, 5, 32)
-    out = numpy.zeros((3, 32, 32, batch_size))
-    for fi in range(32):
-        print fi
-        for y in range(32):
-            for x in range(32):
-                for wy in range(5):
-                    for wx in range(5):
-                        for c in range(3):
-                            if wy+y-padding >=0 and wy+y-padding < 32 and wx+x-padding >=0 and wx+x-padding < 32:
-                                out[c, wy+y-padding, wx+x-padding,:] += weight[c, wy, wx, fi] * feature[fi, y, x,:]
-
-    out = out.reshape(3*32*32,batch_size)
-    out = to_gpu(out)
-    gpu_copy_to(out, feature_out)
 
 def reverse_fprop(l, feature, feature_out, input, output):
     print 'reversing', l.name
     if l.type == 'conv':
-        #gpu_copy_to(feature, l.tmp)
-        #add_vec_to_rows(l.tmp, -l.bias)
-        #gpu_copy_to(l.tmp, feature)
+        if False:
+            feature_num = l.outputShape[0]
+            batch_size = l.outputShape[3]
+            w = to_cpu(l.weight)
+            w2 = (w**2).sum(0).reshape(feature_num,1)
+            f = to_cpu(feature)
+            f = f.reshape(feature_num,-1)
+            f = numpy.divide(f,w2)
+            f = f.reshape(-1,batch_size)
+            feature = to_gpu(f)
+        if False and l.name != 'conv1':
+            gpu_copy_to(feature, l.tmp)
+            add_vec_to_rows(l.tmp, -l.bias)
+            gpu_copy_to(l.tmp, feature)
         l.bprop(feature, input, output, feature_out)
-        #reverse_conv_batch(l, feature, feature_out)
     elif l.type == 'pool':
         l.bprop(feature, input, output, feature_out)
     elif l.type == 'neuron':
+        #gpu_copy_to(feature, feature_out)
+        l.bprop(feature, input, output, feature_out)
+        gpu_copy_to(feature_out, feature)
         l.fprop(feature, feature_out)
     elif l.type in ('cmrnorm', 'rnorm'):
         gpu_copy_to(feature, feature_out)
@@ -61,18 +51,22 @@ def reverse_fprop_net(net, start_from, feature_id):
             start = True
             # find max activation
             f = to_cpu(net.outputs[i])
-            #feature_num = l.outputShape[0]
-            #feature_map_size = l.outputShape[1]
-            #batch_size = l.outputShape[3]
-            #f = f.reshape(feature_num, feature_map_size**2, batch_size)
-            #max_act = f[feature_id,:,:].max()
-            #max_img = f[feature_id,:,:].max(0).argmax()
-            #max_pos = f[feature_id,:,max_img].argmax()
-            #assert f[feature_id, max_pos, max_img] == max_act
-            #f.fill(0)
-            #f[feature_id, max_pos, max_img] = 1
-            #f = f.reshape(feature_num*feature_map_size**2, batch_size)
-            feature = to_gpu(f)
+            if True:
+                feature_num = l.outputShape[0]
+                feature_map_size = l.outputShape[1]
+                batch_size = l.outputShape[3]
+                f = f.reshape(feature_num, feature_map_size**2, batch_size)
+                f2 = numpy.zeros(f.shape)
+                f2.fill(0)
+                max_act = numpy.zeros(128)
+                for img_id in range(128):
+                    max_act[img_id] = f[feature_id,:,img_id].max()
+                    max_pos = f[feature_id,:,img_id].argmax()
+                    f2[feature_id, max_pos, img_id] = 1
+                f2 = f2.reshape(feature_num*feature_map_size**2, batch_size)
+                feature = to_gpu(f2)
+            else:
+                feature = to_gpu(f)
         if start:
             net.features.append(feature)
             input = net.outputs[i-1]
@@ -83,25 +77,45 @@ def reverse_fprop_net(net, start_from, feature_id):
 
     net.features.append(feature_out)
     net.features.reverse()
-    return feature_out, max_img
+    return feature_out, max_act
 
-def plot_layer(net, layer_name, k = 10):
-    g = numpy.zeros((data.shape[0],k))
-    for i in range(k):
-        f,img_id = reverse_fprop_net(net, layer_name, i)
-        f = to_cpu(f)
-        g[:,i] = f[:,img_id]
-    plot_images(g)
-    return g
-
-net = get_net('/scratch/sainaa/imagenet/checkpoint/long-train-1')
-#net = get_net('/scratch/sainaa/cifar-10/checkpoint/cifar-test-1-61')
-data = to_gpu(numpy.load('./batch_data.npy'))
-labels = to_gpu(numpy.load('./batch_labels.npy'))
-#data = to_gpu(numpy.load('./batch_data_cifar.npy'))
-#labels = to_gpu(numpy.load('./batch_labels_cifar.npy'))
+layer_name = sys.argv[1]
+net = get_net(sys.argv[2])
 #for l in net.layers:
 #    if l.type in ('cmrnorm','rnorm'):
 #        l.pow = 0
-net.train_batch(data, labels, TEST)
-g = plot_layer(net,'conv2', 1)
+
+
+#data = to_gpu(numpy.load('./batch_data.npy'))
+#labels = to_gpu(numpy.load('./batch_labels.npy'))
+train_dp, test_dp = get_dp('/ssd/fergusgroup/sainaa/imagenet/train/')
+batch_num = 10
+fnum = 40
+ff = numpy.zeros((3*224*224,128,batch_num,fnum))
+aa = numpy.zeros((128,batch_num,fnum))
+for batch_ind in range(batch_num):
+    batch = test_dp.get_next_batch(128)
+    while batch.data.shape[1] != 128:
+        print 'miss'
+        batch = test_dp.get_next_batch(128)
+    net.train_batch(batch.data, batch.labels, TEST)
+    #net.train_batch(data, labels, TEST)
+    for feature_id in range(fnum):
+        f,max_act = reverse_fprop_net(net, layer_name, feature_id)
+        ff[:,:,batch_ind,feature_id] = to_cpu(f)
+        aa[:,batch_ind,feature_id] = max_act
+
+ff = ff.reshape(-1,128*batch_num,fnum)
+aa = aa.reshape(128*batch_num,fnum)
+g = numpy.zeros((3*224*224,fnum,10))
+for feature_id in range(fnum):
+    a = aa[:,feature_id].argsort()
+    g[:,feature_id,:] = ff[:,a[-10:],feature_id]
+g = g.reshape(-1,10*fnum)
+g = g - g.min(0,keepdims=True)
+g = g / g.max(0,keepdims=True)
+plot_images(g)
+if len(sys.argv) > 3:
+    pylab.savefig(sys.argv[3] + '-' + layer_name, dpi=600, bbox_inches=0)
+
+

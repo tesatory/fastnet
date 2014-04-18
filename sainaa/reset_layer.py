@@ -2,13 +2,15 @@ import zipfile
 import cPickle
 import numpy as np
 from util import *
+import sys
 
 def randn(shape, dtype):
     np.random.seed(0)
     return np.require(np.random.randn(*shape), dtype=dtype, requirements='C')
 
-chkpnt_path = '/scratch/sainaa/imagenet/checkpoint/normal-19ep'
-layers = open_checkpoint(chkpnt_path)
+chkpnt_path = sys.argv[1]
+zf = zipfile.ZipFile(chkpnt_path, 'r')
+layers = cPickle.load(zf.open('layers'))
 initW = 0.01
 
 assert len(layers) == 22
