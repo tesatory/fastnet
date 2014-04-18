@@ -38,7 +38,7 @@ def get_easy_data_balanced(data, labels, score, M):
 	
 def get_new_batches(net, batch_size, train_batches, train_data, train_labels, M):
 	scores = get_scores(net, train_batches)
-	#scores[0:20000] = 10
+	scores[0:50000] = 10
 	train_data2, train_labels2 = get_easy_data_balanced(train_data, train_labels, scores, M)
 	order = range(M)
 	np.random.shuffle(order)

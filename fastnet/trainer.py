@@ -5,6 +5,7 @@ from fastnet.parser import parse_config_file
 from fastnet.scheduler import Scheduler
 from fastnet.util import divup, timer, load
 from pycuda import gpuarray, driver
+from pycuda.gpuarray import GPUArray
 import argparse
 import cPickle
 import glob
@@ -336,6 +337,10 @@ class Trainer:
     self.print_net_summary()
     util.log('Starting predict...')
     save_output = []
+
+    total_cost = 0
+    total_correct = 0
+    total_numcase = 0
     while self.curr_epoch < 2:
       start = time.time()
       test_data = self.test_dp.get_next_batch(self.batch_size)
@@ -343,11 +348,15 @@ class Trainer:
       input, label = test_data.data, test_data.labels
       self.net.train_batch(input, label, TEST)
       cost , correct, numCase = self.net.get_batch_information()
-      self.curr_epoch = self.test_data.epoch
+      self.curr_epoch = test_data.epoch
       self.curr_batch += 1
       print >> sys.stderr, '%d.%d: error: %f logreg: %f time: %f' % (self.curr_epoch, self.curr_batch, 1 - correct, cost, time.time() - start)
       if save_layers is not None:
         save_output.extend(self.net.get_save_output())
+
+      total_cost += cost * numCase
+      total_correct += correct * numCase
+      total_numcase += numCase
 
     if save_layers is not None:
       if filename is not None:
@@ -355,6 +364,61 @@ class Trainer:
           cPickle.dump(save_output, f, protocol=-1)
         util.log('save layer output finished')
 
+    total_cost /= total_numcase
+    total_correct /= total_numcase
+    print >> sys.stderr, '---- test ----'
+    print >> sys.stderr, 'error: %f logreg: %f' % (1 - total_correct, total_cost)
+
+  def get_correct_topK(self, label, output, K):
+    if isinstance(output, GPUArray):
+      output = output.get()
+    if isinstance(label, GPUArray):
+      label = label.get()
+    label = label.ravel().astype(np.int32)
+    batchCorrectTopK = 0
+    for n in range(K):
+      maxid = output.argmax(axis=0).ravel().astype(np.int32)
+      batchCorrectTopK += float(np.count_nonzero(label == maxid))
+      if n < K - 1:
+        for i in xrange(output.shape[1]):
+          output[maxid[i],i] = -1
+    return batchCorrectTopK
+
+  def predict_multiview(self, view_num = 10):
+    total_correct = 0
+    total_correct_top5 = 0
+    total_numcase = 0
+
+    outputs = list()
+    for view_id in xrange(view_num):
+      self.test_dp.dp.multiview = view_id + 1
+      self.test_dp.reset()
+      self.curr_batch = 0
+      self.curr_epoch = 1
+      while self.curr_epoch < 2:
+        test_data = self.test_dp.get_next_batch(self.batch_size)
+        input, label = test_data.data, test_data.labels
+        self.net.train_batch(input, label, TEST)
+        self.curr_epoch = test_data.epoch
+        
+        if self.curr_batch < len(outputs):
+          outputs[self.curr_batch] += self.net.output.get()
+        else:
+          outputs.append(self.net.output.get())
+
+        if view_id == view_num - 1:
+          total_numcase += outputs[self.curr_batch].shape[1]
+          total_correct += self.get_correct_topK(label, outputs[self.curr_batch], 1)
+          total_correct_top5 += self.get_correct_topK(label, outputs[self.curr_batch], 5)
+
+        self.curr_batch += 1
+
+      print >> sys.stderr, 'view: %d, batches: %d' % (view_id, self.curr_batch)
+
+    total_correct /= total_numcase
+    total_correct_top5 /= total_numcase
+    print >> sys.stderr, '---- test ----'
+    print >> sys.stderr, 'top 1 error: %f | top 5 error: %f' % (1 - total_correct, 1 - total_correct_top5)
 
   def report(self):
     rep = self.net.get_report()

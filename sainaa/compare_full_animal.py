@@ -12,13 +12,13 @@ base_dir = '/ssd/fergusgroup/sainaa/imagenet/'
 #train_dp, test_dp = get_dp(base_dir + 'train-animal/')
 train_dp, test_dp = get_dp(base_dir + 'train-dog/')
 #train_dp, test_dp = get_dp(base_dir + 'train-device/')
-#test_dp = train_dp
+test_dp = train_dp
 
 avail_labels = None
 #avail_labels = labels_from_datadir(base_dir + 'train-animal/')
-#avail_labels = labels_from_datadir(base_dir + 'train-dog/')
+avail_labels = labels_from_datadir(base_dir + 'train-dog/')
 #avail_labels = labels_from_datadir(base_dir + 'train-device/')
-
+#avail_labels = None
 
 test_dp.reset()
 total_case = 0

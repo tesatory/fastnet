@@ -35,10 +35,10 @@ if noise_sz > 0:
 	train_data = np.concatenate((train_data, noisy_data), axis=1)
 	train_labels = np.concatenate((train_labels, noisy_labels))
 
-order = range(train_data.shape[1])
-np.random.shuffle(order)
-train_data = train_data[:,order]
-train_labels = train_labels[order]
+# order = range(train_data.shape[1])
+# np.random.shuffle(order)
+# train_data = train_data[:,order]
+# train_labels = train_labels[order]
 N = int(np.floor(train_data.shape[1] / batch_size) * batch_size)
 train_data = train_data[:,0:N]
 train_labels = train_labels[0:N]
@@ -47,8 +47,9 @@ train_batches = data_loader.prepare_batches(train_data, train_labels, batch_size
 test_batches = data_loader.prepare_batches(test_data, test_labels, batch_size)
 print '# train:', train_data.shape[1], 'samples', len(train_batches), 'batches'
 print '# test:', test_data.shape[1], 'samples', len(test_batches), 'batches'
+
 net_trainer.train(net, 10, train_batches, test_batches)
 
-for k in range(5):
+for k in range(6):
 	train_batches2 = data_selection.get_new_batches(net, batch_size,train_batches, train_data, train_labels, 100000)
 	net_trainer.train(net, 10, train_batches2, test_batches)
