@@ -44,7 +44,7 @@ class Layer(object):
     return d
 
 def randn(shape, dtype):
-  np.random.seed(0)
+  # np.random.seed(0)
   return np.require(np.random.randn(*shape), dtype=dtype, requirements='C')
   #return np.random.randn(*shape).astype(dtype)
   
@@ -154,6 +154,7 @@ class WeightedLayer(Layer):
     else:
       #self.weight += self.weightGrad * self.epsW / self.batchSize
       matrix_add(self.weight, self.weightGrad, alpha = 1, beta = self.epsW / F(self.batchSize))
+      matrix_add(self.weight, self.weight, alpha=1, beta= F(-self.wc * self.epsW))
 
     if self.momB > 0.0:
       matrix_add(self.biasIncr, self.biasGrad, alpha=self.momB, beta=self.epsB / F(self.batchSize))
