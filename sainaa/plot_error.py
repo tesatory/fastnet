@@ -25,7 +25,8 @@ test_outputs = cPickle.load(zf.open('test_outputs'))
 train_df = _load_series(train_outputs)
 test_df = _load_series(test_outputs)
 
-batch_per_epoch = 1.0 * 1e+6
+#batch_per_epoch = 1.0 * 1e+6
+batch_per_epoch = 2.6 * 1e+6
 train_error = pandas.Series(train_df['pr'].values, train_df['examples'].values / batch_per_epoch)
 test_error = pandas.Series(test_df['pr'].values, test_df['examples'].values * 100 / batch_per_epoch)
 pandas.rolling_mean(train_error, 10000).plot()

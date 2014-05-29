@@ -420,6 +420,22 @@ class Trainer:
     print >> sys.stderr, '---- test ----'
     print >> sys.stderr, 'top 1 error: %f | top 5 error: %f' % (1 - total_correct, 1 - total_correct_top5)
 
+  def get_confusion(self):
+    num_classes = self.net.layers[-1].outputSize
+    conf = np.zeros((num_classes, num_classes), dtype = np.float32)
+    while self.curr_epoch < 2:
+      test_data = self.test_dp.get_next_batch(self.batch_size)
+      input, label = test_data.data, test_data.labels
+      self.net.train_batch(input, label, TEST)
+      self.curr_epoch = test_data.epoch
+      self.curr_batch += 1
+      out = self.net.output.get()
+      label = label.get()
+      for i in xrange(label.shape[0]):
+        conf[:, int(label[i])] += out[:,i]
+    conf = conf / conf.sum(axis = 0, keepdims = True)
+    return conf
+
   def report(self):
     rep = self.net.get_report()
     if rep is not None:
